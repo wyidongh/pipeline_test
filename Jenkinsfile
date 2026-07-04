@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'IMAGE', defaultValue: 'localhost:5000/cpp-demo:1.0.1', description: 'CI Build Image')
+        string(name: 'IMAGE', defaultValue: '', description: 'CI Image')
     }
 
     stages {
