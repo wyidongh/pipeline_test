@@ -44,8 +44,7 @@ pipeline {
                     set -e
                     echo "Running Integration Test..."
 
-                    docker run -d --rm --name ${CONTAINER_NAME} ${params.IMAGE} sleep 3600
-
+		    docker run -d --name ${CONTAINER_NAME} ${params.IMAGE} sleep 3600
                     sleep 2
 
                     echo "Step 1: execute binary"
@@ -57,14 +56,23 @@ pipeline {
                     docker rm -f ${CONTAINER_NAME} || true
 
                     echo "Integration Test PASSED"
-		    build job: 'pipeline_deploy',
-  		    	 parameters: [
-        			string(name: 'IMAGE', value: "${params.IMAGE}"),
-       		 		string(name: 'VERSION', value: "${params.VERSION}")
-    			]
                 """
             }
         }
+
+	stage('Trigger Deploy') {
+	    steps {
+		script {
+		    build job: 'pipeline_deploy',
+			parameters: [
+			    string(name: 'IMAGE', value: "${params.IMAGE}"),
+			    string(name: 'VERSION', value: "${params.VERSION}")
+			]
+		}
+	    }
+	}
+
+
     }
 
     post {
