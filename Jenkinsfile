@@ -2,63 +2,77 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'IMAGE', defaultValue: '', description: 'CI Image')
+        string(name: 'IMAGE', defaultValue: '', description: 'Image to test (e.g. localhost:5000/cpp-demo:1.0.10)')
+        string(name: 'VERSION', defaultValue: '', description: 'Version tag')
+    }
+
+    environment {
+        CONTAINER_NAME = "it-${BUILD_NUMBER}"
     }
 
     stages {
 
         stage('Pull Image') {
             steps {
-                sh '''
-                docker pull ${IMAGE}
-                '''
+                sh """
+                    set -e
+                    echo "Pulling image: ${params.IMAGE}"
+                    docker pull ${params.IMAGE}
+                """
             }
         }
-
 
         stage('Smoke Test') {
             steps {
-                sh '''
-                echo "Running Smoke Test..."
-
-                docker run --rm ${IMAGE} bash -c "
+                sh """
                     set -e
-                    /build/app &
-                    sleep 1
-                    ps aux | grep app || true
-                "
+                    echo "Running Smoke Test..."
 
-                echo "Smoke Test OK"
-                '''
+                    docker run --rm ${params.IMAGE} bash -c '
+                        set -e
+                        /build/app &
+                        sleep 1
+                        echo "Smoke Test OK"
+                    '
+                """
             }
         }
-
 
         stage('Integration Test') {
             steps {
-                sh '''
-                echo "Running Integration Test..."
+                sh """
+                    set -e
+                    echo "Running Integration Test..."
 
-                docker run -d --rm --name it-${BUILD_NUMBER} ${IMAGE} sleep 3600
+                    docker run -d --rm --name ${CONTAINER_NAME} ${params.IMAGE} sleep 3600
 
-                docker exec it-${BUILD_NUMBER} /build/app > output.txt
+                    sleep 2
 
-                grep -q "Hello CI/CD World" output.txt
+                    echo "Step 1: execute binary"
+                    docker exec ${CONTAINER_NAME} /build/app
 
-                docker rm -f it-${BUILD_NUMBER}
+                    echo "Step 2: validate output"
+                    docker exec ${CONTAINER_NAME} /build/app | grep -q "Hello CI/CD World"
 
-                echo "Integration Test PASSED"
-                '''
-            }
-        }
+                    docker rm -f ${CONTAINER_NAME} || true
 
-        stage('Result') {
-            steps {
-                sh '''
-                echo "TEST SUITE PASSED"
-                '''
+                    echo "Integration Test PASSED"
+                """
             }
         }
     }
-}
 
+    post {
+        always {
+            sh "docker rm -f ${CONTAINER_NAME} || true"
+        }
+
+        success {
+            echo "TEST PIPELINE SUCCESS ✅"
+        }
+
+        failure {
+            echo "TEST PIPELINE FAILED ❌"
+        }
+    }
+}
