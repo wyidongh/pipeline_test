@@ -57,6 +57,11 @@ pipeline {
                     docker rm -f ${CONTAINER_NAME} || true
 
                     echo "Integration Test PASSED"
+		    build job: 'pipeline_deploy',
+  		    	 parameters: [
+        			string(name: 'IMAGE', value: "${params.IMAGE}"),
+       		 		string(name: 'VERSION', value: "${params.VERSION}")
+    			]
                 """
             }
         }
